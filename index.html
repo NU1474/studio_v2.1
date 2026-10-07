@@ -1,0 +1,1567 @@
+<!DOCTYPE html>
+<html lang="ja" class="dark h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>v3D studio v2.0 - BESS 3D Concept Maker</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0fdf4',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Three.js, OrbitControls, FontAwesome, html2pdf -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; overflow: hidden; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.1); }
+        ::-webkit-scrollbar-thumb { background: rgba(100, 116, 139, 0.4); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(100, 116, 139, 0.7); }
+        
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        html:not(.dark) .glass-panel {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            color: #0f172a;
+        }
+
+        .tree-node {
+            cursor: pointer;
+            padding: 6px 12px;
+            border-radius: 6px;
+            transition: all 0.15s ease;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .tree-node:hover {
+            background: rgba(100, 116, 139, 0.2);
+        }
+        .tree-node.active {
+            background: rgba(37, 99, 235, 0.25);
+            border-left: 3px solid #3b82f6;
+            font-weight: 600;
+        }
+        .tree-subnode {
+            padding-left: 24px;
+        }
+    </style>
+</head>
+<body class="bg-slate-950 dark:bg-slate-950 text-slate-100 dark:text-slate-100 h-full w-full flex flex-col antialiased select-none transition-colors duration-200">
+
+    <!-- Header Banner -->
+    <header class="h-14 bg-slate-900/90 dark:bg-slate-900/90 border-b border-slate-800 dark:border-slate-800 px-4 flex items-center justify-between z-20 shrink-0">
+        <div class="flex items-center space-x-3">
+            <div class="bg-gradient-to-tr from-blue-600 to-cyan-500 p-2 rounded-lg text-white font-bold shadow-lg shadow-blue-500/20">
+                <i class="fa-solid fa-cube text-lg"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-lg leading-tight tracking-wide text-white flex items-center gap-2">
+                    v3D studio <span class="text-xs px-2 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30 font-mono">v2.0</span>
+                </h1>
+                <p class="text-[11px] text-slate-400" data-i18n="appSubtitle">BESS 3D Concept Maker</p>
+            </div>
+        </div>
+
+        <!-- Action Toolbar & Theme / Language Switcher -->
+        <div class="flex items-center space-x-2">
+            <span id="saveStatus" class="text-xs text-emerald-400 opacity-0 transition-opacity flex items-center gap-1 mr-2">
+                <i class="fa-solid fa-circle-check"></i> <span data-i18n="statusSaved">Saved</span>
+            </span>
+
+            <!-- Action Buttons -->
+            <button id="btnSaveTemp" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-xs font-medium border border-slate-700 flex items-center gap-1 transition">
+                <i class="fa-solid fa-floppy-disk text-blue-400"></i> <span data-i18n="btnSave">Save</span>
+            </button>
+            <button id="btnPDF" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-xs font-medium border border-slate-700 flex items-center gap-1 transition">
+                <i class="fa-solid fa-file-pdf text-red-400"></i> <span data-i18n="btnPDF">PDF</span>
+            </button>
+            <button id="btnExportCode" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-xs font-medium border border-slate-700 flex items-center gap-1 transition">
+                <i class="fa-solid fa-code text-amber-400"></i> <span data-i18n="btnJSON">JSON</span>
+            </button>
+            <button id="btnDownload" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-xs font-medium border border-slate-700 flex items-center gap-1 transition">
+                <i class="fa-solid fa-download text-emerald-400"></i> <span data-i18n="btnDL">DL</span>
+            </button>
+            <button id="btnShare" class="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded text-xs font-medium shadow-sm flex items-center gap-1 transition mr-2">
+                <i class="fa-solid fa-share-nodes"></i> <span data-i18n="btnShare">Share</span>
+            </button>
+
+            <!-- Theme Selector (Dark / Light / System) -->
+            <div class="flex items-center bg-slate-800 p-1 rounded border border-slate-700 text-xs font-medium mr-2">
+                <i class="fa-solid fa-circle-half-stroke text-slate-400 mr-1 ml-1"></i>
+                <select id="themeSelect" onchange="setTheme(this.value)" class="bg-transparent text-slate-200 focus:outline-none cursor-pointer">
+                    <option value="dark" class="bg-slate-900 text-slate-200" data-i18n="themeDark">Dark</option>
+                    <option value="light" class="bg-slate-900 text-slate-200" data-i18n="themeLight">Light</option>
+                    <option value="system" class="bg-slate-900 text-slate-200" data-i18n="themeSystem">System</option>
+                </select>
+            </div>
+
+            <!-- Language Switcher -->
+            <div class="flex items-center bg-slate-800 p-0.5 rounded border border-slate-700 text-xs font-medium">
+                <button id="lang-ja" onclick="setLanguage('ja')" class="px-2 py-0.5 rounded transition text-slate-400 hover:text-white">日本語</button>
+                <span class="text-slate-600">|</span>
+                <button id="lang-en" onclick="setLanguage('en')" class="px-2 py-0.5 rounded transition text-slate-400 hover:text-white">English</button>
+                <span class="text-slate-600">|</span>
+                <button id="lang-zh" onclick="setLanguage('zh')" class="px-2 py-0.5 rounded transition text-slate-400 hover:text-white">中文</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <div class="flex-1 flex overflow-hidden relative">
+
+        <!-- LEFT: Design Tree Navigation & Form Inputs -->
+        <aside class="w-80 bg-slate-900/95 dark:bg-slate-900/95 border-r border-slate-800 dark:border-slate-800 flex flex-col z-10 shrink-0 overflow-hidden">
+            <div class="p-3 bg-slate-800/60 border-b border-slate-800 font-semibold text-xs text-slate-300 flex justify-between items-center">
+                <span><i class="fa-solid fa-sitemap text-blue-400 mr-1.5"></i><span data-i18n="treeTitle">Design Tree</span></span>
+                <button id="btnResetDefaults" class="text-[11px] text-slate-400 hover:text-white transition" data-i18n="btnReset">Reset</button>
+            </div>
+
+            <!-- Tree View Item Navigation -->
+            <div class="p-2 space-y-0.5 border-b border-slate-800 text-xs overflow-y-auto max-h-56">
+                <div class="tree-node active" onclick="switchTab('system')" id="tn-system">
+                    <span><i class="fa-solid fa-gear text-slate-400 mr-2"></i><span data-i18n="treeSystem">System</span></span>
+                </div>
+                
+                <!-- Battery Group (Fully translated tree items) -->
+                <div class="tree-node" onclick="switchTab('battery-cell')" id="tn-battery">
+                    <span><i class="fa-solid fa-car-battery text-blue-400 mr-2"></i><span data-i18n="treeBattery">Battery</span></span>
+                </div>
+                <div class="tree-node tree-subnode text-slate-400" onclick="switchTab('battery-cell')" id="tn-battery-cell">
+                    <span>└ <span data-i18n="treeCell">Cell</span></span>
+                </div>
+                <div class="tree-node tree-subnode text-slate-400" onclick="switchTab('battery-pack')" id="tn-battery-pack">
+                    <span>└ <span data-i18n="treePack">Pack</span></span>
+                </div>
+                <div class="tree-node tree-subnode text-slate-400" onclick="switchTab('battery-rack')" id="tn-battery-rack">
+                    <span>└ <span data-i18n="treeRack">Rack</span></span>
+                </div>
+
+                <!-- Equipment Group -->
+                <div class="tree-node" onclick="switchTab('eq-pcs')" id="tn-equipment">
+                    <span><i class="fa-solid fa-microchip text-amber-400 mr-2"></i><span data-i18n="treeEquipment">Equipment</span></span>
+                </div>
+                <div class="tree-node tree-subnode text-slate-400" onclick="switchTab('eq-pcs')" id="tn-eq-pcs">
+                    <span>└ <span data-i18n="treePCS">PCS</span></span>
+                </div>
+                <div class="tree-node tree-subnode text-slate-400" onclick="switchTab('eq-trans')" id="tn-eq-trans">
+                    <span>└ <span data-i18n="treeTransformer">Transformer</span></span>
+                </div>
+                <div class="tree-node tree-subnode text-slate-400" onclick="switchTab('eq-hvac')" id="tn-eq-hvac">
+                    <span>└ <span data-i18n="treeHVAC">HVAC</span></span>
+                </div>
+                <div class="tree-node tree-subnode text-slate-400" onclick="switchTab('eq-novec')" id="tn-eq-novec">
+                    <span>└ <span data-i18n="treeNOVEC">NOVEC</span></span>
+                </div>
+
+                <!-- Container Group -->
+                <div class="tree-node" onclick="switchTab('container')" id="tn-container">
+                    <span><i class="fa-solid fa-box text-cyan-400 mr-2"></i><span data-i18n="treeContainer">Container</span></span>
+                </div>
+
+                <!-- Door / Cable / Service Space -->
+                <div class="tree-node" onclick="switchTab('dcs')" id="tn-dcs">
+                    <span><i class="fa-solid fa-door-open text-purple-400 mr-2"></i><span data-i18n="treeDCS">Door / Cable / Service Space</span></span>
+                </div>
+
+                <!-- Interference Check -->
+                <div class="tree-node" onclick="switchTab('interference')" id="tn-interference">
+                    <span><i class="fa-solid fa-triangle-exclamation text-yellow-400 mr-2"></i><span data-i18n="treeInterference">Interference Check</span></span>
+                    <span id="treeInterferenceBadge" class="px-1.5 py-0.5 rounded text-[10px] bg-emerald-500/20 text-emerald-400 font-mono">OK</span>
+                </div>
+            </div>
+
+            <!-- Settings Form View Area -->
+            <div class="flex-1 overflow-y-auto p-3 text-xs">
+                
+                <!-- System Settings -->
+                <div id="tab-system" class="space-y-3">
+                    <h3 class="font-bold text-slate-200 pb-1 border-b border-slate-800" data-i18n="treeSystem">System</h3>
+                    <div>
+                        <label class="text-slate-400 block mb-1" data-i18n="lblContainerSize">Container Size</label>
+                        <select id="sysContainerSize" class="w-full bg-slate-800 border border-slate-700 rounded p-1.5 font-mono text-slate-100">
+                            <option value="10ft">10ft ISO (2,991 x 2,438 x 2,591 mm)</option>
+                            <option value="12ft">12ft ISO (3,658 x 2,438 x 2,591 mm)</option>
+                            <option value="20ft" selected>20ft ISO (6,058 x 2,438 x 2,591 mm)</option>
+                            <option value="40ft">40ft HC (12,192 x 2,438 x 2,896 mm)</option>
+                        </select>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="text-slate-400 block mb-1" data-i18n="lblTargetCap">Target Capacity (MWh)</label>
+                            <input type="number" id="sysTargetCap" value="1.5" step="0.1" class="w-full bg-slate-800 border border-slate-700 rounded p-1.5 font-mono">
+                        </div>
+                        <div>
+                            <label class="text-slate-400 block mb-1" data-i18n="lblTargetPower">Target Power (MW)</label>
+                            <input type="number" id="sysTargetPower" value="0.75" step="0.05" class="w-full bg-slate-800 border border-slate-700 rounded p-1.5 font-mono">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="text-slate-400 block mb-1" data-i18n="lblChemistry">Battery Chemistry</label>
+                            <select id="sysChemistry" class="w-full bg-slate-800 border border-slate-700 rounded p-1.5">
+                                <option value="LFP">LFP (LiFePO4)</option>
+                                <option value="NMC">NMC</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-slate-400 block mb-1" data-i18n="lblSystemVolt">System Voltage (V)</label>
+                            <input type="number" id="sysVoltage" value="1500" class="w-full bg-slate-800 border border-slate-700 rounded p-1.5 font-mono">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Battery Cell -->
+                <div id="tab-battery-cell" class="space-y-3 hidden">
+                    <h3 class="font-bold text-slate-200 pb-1 border-b border-slate-800" data-i18n="treeCell">Cell</h3>
+                    <div class="grid grid-cols-3 gap-2">
+                        <div>
+                            <label class="text-slate-400 block mb-1"><span data-i18n="lblLength">Length</span> (mm)</label>
+                            <input type="number" id="cellL" value="173" class="w-full bg-slate-800 border border-slate-700 rounded p-1.5 font-mono">
+                        </div>
+                        <div>
+                            <label class="text-slate-400 block mb-1"><span data-i18n="lblWidth">Width</span> (mm)</label>
+                            <input type="number" id="cellW" value="72" class="w-full bg-slate-800 border border-slate-700 rounded p-1.5 font-mono">
+                        </div>
+                        <div>
+                            <label class="text-slate-400 block mb-1"><span data-i18n="lblHeight">Height</span> (mm)</label>
+                            <input type="number" id="cellH" value="207" class="w-full bg-slate-800 border border-slate-700 rounded p-1.5 font-mono">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2">
+                        <div>
+                            <label class="text-slate-400 block mb-1"><span data-i18n="lblWeight">Weight</span> (kg)</label>
+                            <input type="number" id="cellWeight" value="5.4" step="0.1" class="w-full bg-slate-800 border border-slate-700 rounded p-1.5 font-mono">
+                        </div>
+                        <div>
+                            <label class="text-slate-400 block mb-1"><span data-i18n="lblNomVolt">Nominal Volt</span> (V)</label>
+                            <input type="number" id="cellVolt" value="3.2" step="0.1" class="w-full bg-slate-800 border border-slate-700 rounded p-1.5 font-mono">
+                        </div>
+                        <div>
+                            <label class="text-slate-400 block mb-1"><span data-i18n="lblCapacity">Capacity</span> (Ah)</label>
+                            <input type="number" id="cellCap" value="306" class="w-full bg-slate-800 border border-slate-700 rounded p-1.5 font-mono">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Battery Pack -->
+                <div id="tab-battery-pack" class="space-y-3 hidden">
+                    <h3 class="font-bold text-slate-200 pb-1 border-b border-slate-800" data-i18n="treePack">Pack</h3>
+                    <div>
+                        <label class="text-slate-400 block mb-1" data-i18n="lblCellsPerPack">Cells per Pack</label>
+                        <input type="number" id="cellsPerPack" value="16" class="w-full bg-slate-800 border border-slate-700 rounded p-1.5 font-mono">
+                    </div>
+                    <div class="grid grid-cols-3 gap-2">
+                        <div>
+                            <label class="text-slate-400 block mb-1"><span data-i18n="lblLength">Length</span> (mm)</label>
+                            <input type="number" id="packL" value="700" class="w-full bg-slate-800 border border-slate-700 rounded p-1.5 font-mono">
+                        </div>
+                        <div>
+                            <label class="text-slate-400 block mb-1"><span data-i18n="lblWidth">Width</span> (mm)</label>
+                            <input type="number" id="packW" value="550" class="w-full bg-slate-800 border border-slate-700 rounded p-1.5 font-mono">
+                        </div>
+                        <div>
+                            <label class="text-slate-400 block mb-1"><span data-i18n="lblHeight">Height</span> (mm)</label>
+                            <input type="number" id="packH" value="220" class="w-full bg-slate-800 border border-slate-700 rounded p-1.5 font-mono">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-slate-400 block mb-1"><span data-i18n="lblWeight">Weight</span> (kg)</label>
+                        <input type="number" id="packWeight" value="110" class="w-full bg-slate-800 border border-slate-700 rounded p-1.5 font-mono">
+                    </div>
+                </div>
+
+                <!-- Battery Rack -->
+                <div id="tab-battery-rack" class="space-y-3 hidden">
+                    <h3 class="font-bold text-slate-200 pb-1 border-b border-slate-800" data-i18n="treeRack">Rack</h3>
+                    <div>
+                        <label class="text-slate-400 block mb-1" data-i18n="lblPacksPerRack">Packs per Rack</label>
+                        <input type="number" id="packsPerRack" value="8" class="w-full bg-slate-800 border border-slate-700 rounded p-1.5 font-mono">
+                    </div>
+                    <div class="grid grid-cols-3 gap-2">
+                        <div>
+                            <label class="text-slate-400 block mb-1"><span data-i18n="lblLength">Length</span> (mm)</label>
+                            <input type="number" id="rackL" value="800" class="w-full bg-slate-800 border border-slate-700 rounded p-1.5 font-mono">
+                        </div>
+                        <div>
+                            <label class="text-slate-400 block mb-1"><span data-i18n="lblWidth">Width</span> (mm)</label>
+                            <input type="number" id="rackW" value="600" class="w-full bg-slate-800 border border-slate-700 rounded p-1.5 font-mono">
+                        </div>
+                        <div>
+                            <label class="text-slate-400 block mb-1"><span data-i18n="lblHeight">Height</span> (mm)</label>
+                            <input type="number" id="rackH" value="2100" class="w-full bg-slate-800 border border-slate-700 rounded p-1.5 font-mono">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-slate-400 block mb-1"><span data-i18n="lblWeight">Weight</span> (kg)</label>
+                        <input type="number" id="rackWeight" value="980" class="w-full bg-slate-800 border border-slate-700 rounded p-1.5 font-mono">
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 pt-1 border-t border-slate-800">
+                        <div>
+                            <label class="text-slate-400 block mb-1" data-i18n="lblRackCols">Rack Columns</label>
+                            <input type="number" id="rackCols" value="2" min="1" max="4" class="w-full bg-slate-800 border border-slate-700 rounded p-1.5 font-mono">
+                        </div>
+                        <div>
+                            <label class="text-slate-400 block mb-1" data-i18n="lblRackRows">Rack Rows</label>
+                            <input type="number" id="rackRows" value="4" min="1" max="12" class="w-full bg-slate-800 border border-slate-700 rounded p-1.5 font-mono">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PCS -->
+                <div id="tab-eq-pcs" class="space-y-3 hidden">
+                    <h3 class="font-bold text-slate-200 pb-1 border-b border-slate-800" data-i18n="treePCS">PCS</h3>
+                    <div>
+                        <label class="text-slate-400 block mb-1" data-i18n="lblRatedPower">Rated Power (kW)</label>
+                        <input type="number" id="pcsPower" value="500" class="w-full bg-slate-800 border border-slate-700 rounded p-1.5 font-mono">
+                    </div>
+                    <div class="grid grid-cols-3 gap-2">
+                        <div>
+                            <label class="text-slate-400 block mb-1"><span data-i18n="lblLength">Length</span> (mm)</label>
+                            <input type="number" id="pcsL" value="1000" class="w-full bg-slate-800 border border-slate-700 rounded p-1.5 font-mono">
+                        </div>
+                        <div>
+                            <label class="text-slate-400 block mb-1"><span data-i18n="lblWidth">Width</span> (mm)</label>
+                            <input type="number" id="pcsW" value="800" class="w-full bg-slate-800 border border-slate-700 rounded p-1.5 font-mono">
+                        </div>
+                        <div>
+                            <label class="text-slate-400 block mb-1"><span data-i18n="lblHeight">Height</span> (mm)</label>
+                            <input type="number" id="pcsH" value="2000" class="w-full bg-slate-800 border border-slate-700 rounded p-1.5 font-mono">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="text-slate-400 block mb-1"><span data-i18n="lblWeight">Weight</span> (kg)</label>
+                            <input type="number" id="pcsWeight" value="1200" class="w-full bg-slate-800 border border-slate-700 rounded p-1.5 font-mono">
+                        </div>
+                        <div>
+                            <label class="text-slate-400 block mb-1"><span data-i18n="lblQuantity">Quantity</span></label>
+                            <input type="number" id="pcsQty" value="1" min="1" max="4" class="w-full bg-slate-800 border border-slate-700 rounded p-1.5 font-mono">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Transformer -->
+                <div id="tab-eq-trans" class="space-y-3 hidden">
+                    <h3 class="font-bold text-slate-200 pb-1 border-b border-slate-800" data-i18n="treeTransformer">Transformer</h3>
+                    <div>
+                        <label class="text-slate-400 block mb-1" data-i18n="lblRatedCap">Rated Capacity (kVA)</label>
+                        <input type="number" id="transCap" value="630" class="w-full bg-slate-800 border border-slate-700 rounded p-1.5 font-mono">
+                    </div>
+                    <div class="grid grid-cols-3 gap-2">
+                        <div>
+                            <label class="text-slate-400 block mb-1"><span data-i18n="lblLength">Length</span> (mm)</label>
+                            <input type="number" id="transL" value="800" class="w-full bg-slate-800 border border-slate-700 rounded p-1.5 font-mono">
+                        </div>
+                        <div>
+                            <label class="text-slate-400 block mb-1"><span data-i18n="lblWidth">Width</span> (mm)</label>
+                            <input type="number" id="transW" value="800" class="w-full bg-slate-800 border border-slate-700 rounded p-1.5 font-mono">
+                        </div>
+                        <div>
+                            <label class="text-slate-400 block mb-1"><span data-i18n="lblHeight">Height</span> (mm)</label>
+                            <input type="number" id="transH" value="1800" class="w-full bg-slate-800 border border-slate-700 rounded p-1.5 font-mono">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="text-slate-400 block mb-1"><span data-i18n="lblWeight">Weight</span> (kg)</label>
+                            <input type="number" id="transWeight" value="950" class="w-full bg-slate-800 border border-slate-700 rounded p-1.5 font-mono">
+                        </div>
+                        <div>
+                            <label class="text-slate-400 block mb-1"><span data-i18n="lblQuantity">Quantity</span></label>
+                            <input type="number" id="transQty" value="1" min="0" max="4" class="w-full bg-slate-800 border border-slate-700 rounded p-1.5 font-mono">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- HVAC -->
+                <div id="tab-eq-hvac" class="space-y-3 hidden">
+                    <h3 class="font-bold text-slate-200 pb-1 border-b border-slate-800" data-i18n="treeHVAC">HVAC</h3>
+                    <div>
+                        <label class="text-slate-400 block mb-1" data-i18n="lblCoolingCap">Cooling Capacity (kW)</label>
+                        <input type="number" id="hvacCooling" value="40" class="w-full bg-slate-800 border border-slate-700 rounded p-1.5 font-mono">
+                    </div>
+                    <div class="grid grid-cols-3 gap-2">
+                        <div>
+                            <label class="text-slate-400 block mb-1"><span data-i18n="lblLength">Length</span> (mm)</label>
+                            <input type="number" id="hvacL" value="600" class="w-full bg-slate-800 border border-slate-700 rounded p-1.5 font-mono">
+                        </div>
+                        <div>
+                            <label class="text-slate-400 block mb-1"><span data-i18n="lblWidth">Width</span> (mm)</label>
+                            <input type="number" id="hvacW" value="800" class="w-full bg-slate-800 border border-slate-700 rounded p-1.5 font-mono">
+                        </div>
+                        <div>
+                            <label class="text-slate-400 block mb-1"><span data-i18n="lblHeight">Height</span> (mm)</label>
+                            <input type="number" id="hvacH" value="2000" class="w-full bg-slate-800 border border-slate-700 rounded p-1.5 font-mono">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="text-slate-400 block mb-1"><span data-i18n="lblWeight">Weight</span> (kg)</label>
+                            <input type="number" id="hvacWeight" value="450" class="w-full bg-slate-800 border border-slate-700 rounded p-1.5 font-mono">
+                        </div>
+                        <div>
+                            <label class="text-slate-400 block mb-1"><span data-i18n="lblQuantity">Quantity</span></label>
+                            <input type="number" id="hvacQty" value="1" min="1" max="4" class="w-full bg-slate-800 border border-slate-700 rounded p-1.5 font-mono">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- NOVEC -->
+                <div id="tab-eq-novec" class="space-y-3 hidden">
+                    <h3 class="font-bold text-slate-200 pb-1 border-b border-slate-800" data-i18n="treeNOVEC">NOVEC</h3>
+                    <div class="grid grid-cols-3 gap-2">
+                        <div>
+                            <label class="text-slate-400 block mb-1"><span data-i18n="lblLength">Length</span> (mm)</label>
+                            <input type="number" id="novecL" value="400" class="w-full bg-slate-800 border border-slate-700 rounded p-1.5 font-mono">
+                        </div>
+                        <div>
+                            <label class="text-slate-400 block mb-1"><span data-i18n="lblWidth">Width</span> (mm)</label>
+                            <input type="number" id="novecW" value="500" class="w-full bg-slate-800 border border-slate-700 rounded p-1.5 font-mono">
+                        </div>
+                        <div>
+                            <label class="text-slate-400 block mb-1"><span data-i18n="lblHeight">Height</span> (mm)</label>
+                            <input type="number" id="novecH" value="1600" class="w-full bg-slate-800 border border-slate-700 rounded p-1.5 font-mono">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="text-slate-400 block mb-1"><span data-i18n="lblWeight">Weight</span> (kg)</label>
+                            <input type="number" id="novecWeight" value="180" class="w-full bg-slate-800 border border-slate-700 rounded p-1.5 font-mono">
+                        </div>
+                        <div>
+                            <label class="text-slate-400 block mb-1"><span data-i18n="lblQuantity">Quantity</span></label>
+                            <input type="number" id="novecQty" value="1" min="1" max="4" class="w-full bg-slate-800 border border-slate-700 rounded p-1.5 font-mono">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Container & Foundation -->
+                <div id="tab-container" class="space-y-3 hidden">
+                    <h3 class="font-bold text-slate-200 pb-1 border-b border-slate-800" data-i18n="treeContainer">Container</h3>
+                    <div>
+                        <div class="flex justify-between text-slate-400 mb-1">
+                            <span data-i18n="lblOpacity">Container Opacity</span>
+                            <span id="opacityVal">30%</span>
+                        </div>
+                        <input type="range" id="shellOpacity" min="0" max="1" step="0.05" value="0.3" class="w-full accent-blue-500">
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 border-t border-slate-800 pt-2">
+                        <div>
+                            <label class="text-slate-400 block mb-1" data-i18n="lblFoundH">Foundation Height (mm)</label>
+                            <input type="number" id="foundH" value="400" class="w-full bg-slate-800 border border-slate-700 rounded p-1.5 font-mono">
+                        </div>
+                        <div>
+                            <label class="text-slate-400 block mb-1" data-i18n="lblShellWeight">Container Weight (kg)</label>
+                            <input type="number" id="shellWeight" value="2800" class="w-full bg-slate-800 border border-slate-700 rounded p-1.5 font-mono">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Door / Cable / Service Space -->
+                <div id="tab-dcs" class="space-y-3 hidden">
+                    <h3 class="font-bold text-slate-200 pb-1 border-b border-slate-800" data-i18n="treeDCS">Door / Cable / Service Space</h3>
+                    
+                    <div class="space-y-1.5">
+                        <span class="font-semibold text-slate-300 block" data-i18n="lblDoor">Door</span>
+                        <div class="grid grid-cols-3 gap-1.5">
+                            <div>
+                                <label class="text-[10px] text-slate-400 block" data-i18n="lblDoorPos">Position</label>
+                                <select id="doorPos" class="w-full bg-slate-800 border border-slate-700 rounded p-1">
+                                    <option value="front" data-i18n="lblFront">Front</option>
+                                    <option value="rear" data-i18n="lblRear">Rear</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-slate-400 block"><span data-i18n="lblWidth">Width</span> (mm)</label>
+                                <input type="number" id="doorW" value="900" class="w-full bg-slate-800 border border-slate-700 rounded p-1 font-mono">
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-slate-400 block"><span data-i18n="lblHeight">Height</span> (mm)</label>
+                                <input type="number" id="doorH" value="2000" class="w-full bg-slate-800 border border-slate-700 rounded p-1 font-mono">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-1.5 border-t border-slate-800 pt-2">
+                        <span class="font-semibold text-slate-300 block" data-i18n="lblCable">Cable Entry</span>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="text-[10px] text-slate-400 block" data-i18n="lblCablePos">Entry Position</label>
+                                <select id="cablePos" class="w-full bg-slate-800 border border-slate-700 rounded p-1">
+                                    <option value="bottom-left" data-i18n="lblBottomLeft">Bottom Left</option>
+                                    <option value="bottom-right" data-i18n="lblBottomRight">Bottom Right</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-slate-400 block" data-i18n="lblCableSize">Entry Size (mm)</label>
+                                <input type="number" id="cableSize" value="300" class="w-full bg-slate-800 border border-slate-700 rounded p-1 font-mono">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-1.5 border-t border-slate-800 pt-2">
+                        <span class="font-semibold text-slate-300 block" data-i18n="lblServiceSpace">Service Space</span>
+                        <div class="grid grid-cols-3 gap-1.5">
+                            <div>
+                                <label class="text-[10px] text-slate-400 block" data-i18n="lblFrontClearance">Front (mm)</label>
+                                <input type="number" id="clrFront" value="800" class="w-full bg-slate-800 border border-slate-700 rounded p-1 font-mono">
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-slate-400 block" data-i18n="lblRearClearance">Rear (mm)</label>
+                                <input type="number" id="clrRear" value="100" class="w-full bg-slate-800 border border-slate-700 rounded p-1 font-mono">
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-slate-400 block" data-i18n="lblSideClearance">Side (mm)</label>
+                                <input type="number" id="clrSide" value="100" class="w-full bg-slate-800 border border-slate-700 rounded p-1 font-mono">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Interference Check Log -->
+                <div id="tab-interference" class="space-y-3 hidden">
+                    <h3 class="font-bold text-slate-200 pb-1 border-b border-slate-800 flex justify-between items-center">
+                        <span data-i18n="treeInterference">Interference Check</span>
+                        <span id="interferenceStatusBadge" class="px-2 py-0.5 rounded text-xs bg-emerald-500/20 text-emerald-400 font-bold">OK</span>
+                    </h3>
+                    <p class="text-[11px] text-slate-400" data-i18n="msgInterferenceDesc">Automatic physical interference & boundary checking.</p>
+                    <div id="interferenceLog" class="p-2.5 bg-slate-950/80 rounded border border-slate-800 font-mono text-[11px] space-y-1 max-h-60 overflow-y-auto">
+                        <div class="text-emerald-400"><i class="fa-solid fa-check mr-1"></i> No interference detected.</div>
+                    </div>
+                </div>
+
+            </div>
+        </aside>
+
+        <!-- CENTER: 3D Model Viewer Canvas -->
+        <main class="flex-1 relative bg-slate-950 overflow-hidden flex flex-col">
+            
+            <div id="canvasContainer" class="w-full h-full cursor-grab active:cursor-grabbing"></div>
+
+            <!-- View Angle Preset Buttons -->
+            <div class="absolute top-4 left-4 z-10 flex gap-1 bg-slate-900/80 p-1 rounded-lg border border-slate-700/60 shadow-lg text-xs">
+                <button onclick="setCameraView('top')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 rounded text-slate-200 font-medium" data-i18n="viewTop">Top</button>
+                <button onclick="setCameraView('front')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 rounded text-slate-200 font-medium" data-i18n="viewFront">Front</button>
+                <button onclick="setCameraView('side')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 rounded text-slate-200 font-medium" data-i18n="viewSide">Side</button>
+                <button onclick="setCameraView('iso')" class="px-2.5 py-1 bg-blue-600 hover:bg-blue-500 rounded text-white font-medium">3D</button>
+            </div>
+
+            <!-- 3D Model Legend Overlay -->
+            <div class="absolute top-4 right-4 glass-panel p-3 rounded-xl shadow-2xl text-xs space-y-2 pointer-events-none select-none border border-slate-700/60 z-10 max-w-xs">
+                <div class="font-bold text-slate-300 border-b border-slate-700/60 pb-1 flex items-center gap-1">
+                    <i class="fa-solid fa-cubes text-blue-400"></i> <span data-i18n="legendTitle">3D Legend</span>
+                </div>
+                <div class="space-y-1.5 text-slate-200 text-[11px]">
+                    <div class="flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-sm inline-block shadow-sm bg-blue-600"></span>
+                        <span class="font-medium" data-i18n="legBattery">Battery Rack</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-sm inline-block shadow-sm bg-yellow-500"></span>
+                        <span class="font-medium" data-i18n="legPCS">PCS</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-sm inline-block shadow-sm bg-orange-500"></span>
+                        <span class="font-medium" data-i18n="legTransformer">Transformer</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-sm inline-block shadow-sm bg-cyan-500"></span>
+                        <span class="font-medium" data-i18n="legHVAC">HVAC</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-sm inline-block shadow-sm bg-red-500"></span>
+                        <span class="font-medium" data-i18n="legNOVEC">NOVEC Fire System</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Selected Component Control Gizmo Overlay -->
+            <div id="selectedGizmoPanel" class="absolute bottom-20 left-4 glass-panel p-3 rounded-xl shadow-2xl text-xs space-y-2 select-none border border-slate-700/60 z-10 hidden w-64">
+                <div class="font-bold text-slate-200 border-b border-slate-700/60 pb-1 flex justify-between items-center">
+                    <span id="selectedObjName" class="text-blue-400">Selected Item</span>
+                    <button id="btnDeselect" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="grid grid-cols-2 gap-2 pt-1">
+                    <button id="btnRotateY" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 py-1.5 rounded text-slate-200 flex items-center justify-center gap-1">
+                        <i class="fa-solid fa-rotate-right text-cyan-400"></i> <span data-i18n="btnRotate">Rotate 90°</span>
+                    </button>
+                    <button id="btnResetPos" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 py-1.5 rounded text-slate-200 flex items-center justify-center gap-1">
+                        <i class="fa-solid fa-arrows-to-dot text-amber-400"></i> <span data-i18n="btnReset">Reset</span>
+                    </button>
+                </div>
+            </div>
+
+        </main>
+
+        <!-- RIGHT: System Summary (Fixed 4 Core Specs) -->
+        <aside class="w-72 bg-slate-900/95 dark:bg-slate-900/95 border-l border-slate-800 dark:border-slate-800 flex flex-col z-10 shrink-0 p-4 space-y-4">
+            <div class="font-bold text-xs text-slate-300 border-b border-slate-800 pb-2 flex items-center gap-1.5">
+                <i class="fa-solid fa-chart-pie text-blue-400"></i> <span data-i18n="summaryTitle">System Summary</span>
+            </div>
+
+            <!-- Capacity -->
+            <div class="bg-slate-950/60 p-3 rounded-xl border border-slate-800/80 shadow-sm">
+                <div class="text-[11px] text-slate-400 flex items-center gap-1.5">
+                    <i class="fa-solid fa-bolt text-yellow-400"></i> <span data-i18n="lblSystemCapacity">System Capacity</span>
+                </div>
+                <div class="text-xl font-bold text-slate-100 font-mono mt-1" id="valTotalCap">0.000 MWh</div>
+            </div>
+
+            <!-- Total Weight -->
+            <div class="bg-slate-950/60 p-3 rounded-xl border border-slate-800/80 shadow-sm">
+                <div class="text-[11px] text-slate-400 flex items-center gap-1.5">
+                    <i class="fa-solid fa-weight-hanging text-emerald-400"></i> <span data-i18n="lblTotalWeight">Total Weight</span>
+                </div>
+                <div class="text-xl font-bold text-slate-100 font-mono mt-1" id="valTotalWeight">0.00 ton</div>
+            </div>
+
+            <!-- Axle Load -->
+            <div class="bg-slate-950/60 p-3 rounded-xl border border-slate-800/80 shadow-sm">
+                <div class="text-[11px] text-slate-400 flex items-center gap-1.5">
+                    <i class="fa-solid fa-truck-front text-cyan-400"></i> <span data-i18n="lblAxleLoad">Axle Load</span>
+                </div>
+                <div class="text-sm font-bold text-slate-100 font-mono mt-1" id="valAxleLoad">Front 0.00 ton / Rear 0.00 ton</div>
+            </div>
+
+            <!-- Aisle Width -->
+            <div class="bg-slate-950/60 p-3 rounded-xl border border-slate-800/80 shadow-sm">
+                <div class="text-[11px] text-slate-400 flex items-center gap-1.5">
+                    <i class="fa-solid fa-ruler-combined text-purple-400"></i> <span data-i18n="lblAisleWidth">Aisle Width</span>
+                </div>
+                <div class="text-xl font-bold text-slate-100 font-mono mt-1" id="valWalkway">800 mm</div>
+            </div>
+        </aside>
+
+    </div>
+
+    <!-- JSON Code Export Modal -->
+    <div id="modalCode" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center hidden">
+        <div class="bg-slate-900 border border-slate-700 rounded-xl w-11/12 max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[85vh]">
+            <div class="p-4 bg-slate-800 border-b border-slate-700 flex justify-between items-center">
+                <h3 class="font-bold text-slate-100 flex items-center gap-2">
+                    <i class="fa-solid fa-code text-amber-400"></i> BESS Design Config JSON
+                </h3>
+                <button id="btnCloseModal" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div class="p-4 flex-1 overflow-auto">
+                <textarea id="codeArea" readonly class="w-full h-80 bg-slate-950 font-mono text-xs text-emerald-400 p-3 rounded border border-slate-800 focus:outline-none"></textarea>
+            </div>
+            <div class="p-3 bg-slate-800/50 border-t border-slate-800 flex justify-end gap-2">
+                <button id="btnCopyCode" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded text-xs font-semibold flex items-center gap-1.5">
+                    <i class="fa-solid fa-copy"></i> Copy JSON
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Script Engine -->
+    <script>
+        // --- 1. MULTI-LANGUAGE TRANSLATION DICTIONARY ---
+        const translations = {
+            ja: {
+                appSubtitle: "コンテナ型蓄電池システム (BESS) 3D概念設計ソフト",
+                statusSaved: "自動保存完了",
+                btnSave: "一時保存",
+                btnPDF: "PDF出力",
+                btnJSON: "コード生成",
+                btnDL: "DL",
+                btnShare: "共有",
+                btnReset: "初期化",
+                btnRotate: "90°回転",
+                themeDark: "ダーク",
+                themeLight: "ライト",
+                themeSystem: "システム準拠",
+                treeTitle: "設計ツリー",
+                treeSystem: "System",
+                treeBattery: "Battery",
+                treeCell: "Cell (セル)",
+                treePack: "Pack (パック)",
+                treeRack: "Rack (ラック)",
+                treeEquipment: "Equipment",
+                treePCS: "PCS",
+                treeTransformer: "Transformer",
+                treeHVAC: "HVAC",
+                treeNOVEC: "NOVEC",
+                treeContainer: "Container",
+                treeDCS: "Door / Cable / Service Space",
+                treeInterference: "Interference Check",
+                summaryTitle: "システム概要",
+                lblSystemCapacity: "システム容量",
+                lblTotalWeight: "総重量",
+                lblAxleLoad: "軸重",
+                lblAisleWidth: "通路間隔",
+                lblContainerSize: "コンテナサイズ",
+                lblTargetCap: "目標容量",
+                lblTargetPower: "目標出力",
+                lblChemistry: "セル化学組成",
+                lblSystemVolt: "システム電圧",
+                lblLength: "長さ",
+                lblWidth: "幅",
+                lblHeight: "高さ",
+                lblWeight: "重量",
+                lblCapacity: "容量",
+                lblNomVolt: "公称電圧",
+                lblCellsPerPack: "パック内セル数",
+                lblPacksPerRack: "ラック内パック数",
+                lblRackCols: "ラック配置 (列)",
+                lblRackRows: "ラック配置 (行/奥行)",
+                lblRatedPower: "定格出力",
+                lblRatedCap: "定格容量",
+                lblCoolingCap: "冷却能力",
+                lblQuantity: "数量",
+                lblOpacity: "外装透明度",
+                lblFoundH: "基礎高さ",
+                lblShellWeight: "コンテナ重量",
+                lblDoor: "アクセスドア",
+                lblDoorPos: "ドア位置",
+                lblCable: "ケーブル引込部",
+                lblCablePos: "引込位置",
+                lblCableSize: "引込口サイズ",
+                lblServiceSpace: "保守スペース (クリアランス)",
+                lblFrontClearance: "前面",
+                lblRearClearance: "背面",
+                lblSideClearance: "側面",
+                lblFront: "前面",
+                lblRear: "背面",
+                lblBottomLeft: "左下",
+                lblBottomRight: "右下",
+                legendTitle: "3D凡例",
+                legBattery: "Battery Rack",
+                legPCS: "PCS",
+                legTransformer: "変圧器",
+                legHVAC: "HVAC",
+                legNOVEC: "NOVEC",
+                viewTop: "上面",
+                viewFront: "正面",
+                viewSide: "側面",
+                msgInterferenceDesc: "機器同士および境界との物理的干渉を自動判定します。",
+                msgOK: "干渉なし (物理配置OK)",
+                msgWarning: "干渉警告発令"
+            },
+            en: {
+                appSubtitle: "Containerized BESS 3D Virtual Concept Designer",
+                statusSaved: "Auto Saved",
+                btnSave: "Save",
+                btnPDF: "PDF",
+                btnJSON: "JSON",
+                btnDL: "DL",
+                btnShare: "Share",
+                btnReset: "Reset",
+                btnRotate: "Rotate 90°",
+                themeDark: "Dark",
+                themeLight: "Light",
+                themeSystem: "System",
+                treeTitle: "Design Tree",
+                treeSystem: "System",
+                treeBattery: "Battery",
+                treeCell: "Cell",
+                treePack: "Pack",
+                treeRack: "Rack",
+                treeEquipment: "Equipment",
+                treePCS: "PCS",
+                treeTransformer: "Transformer",
+                treeHVAC: "HVAC",
+                treeNOVEC: "NOVEC",
+                treeContainer: "Container",
+                treeDCS: "Door / Cable / Service Space",
+                treeInterference: "Interference Check",
+                summaryTitle: "System Summary",
+                lblSystemCapacity: "System Capacity",
+                lblTotalWeight: "Total Weight",
+                lblAxleLoad: "Axle Load",
+                lblAisleWidth: "Aisle Width",
+                lblContainerSize: "Container Size",
+                lblTargetCap: "Target Capacity",
+                lblTargetPower: "Target Power",
+                lblChemistry: "Battery Chemistry",
+                lblSystemVolt: "System Voltage",
+                lblLength: "Length",
+                lblWidth: "Width",
+                lblHeight: "Height",
+                lblWeight: "Weight",
+                lblCapacity: "Capacity",
+                lblNomVolt: "Nominal Voltage",
+                lblCellsPerPack: "Cells per Pack",
+                lblPacksPerRack: "Packs per Rack",
+                lblRackCols: "Rack Columns",
+                lblRackRows: "Rack Rows",
+                lblRatedPower: "Rated Power",
+                lblRatedCap: "Rated Capacity",
+                lblCoolingCap: "Cooling Capacity",
+                lblQuantity: "Quantity",
+                lblOpacity: "Container Opacity",
+                lblFoundH: "Foundation Height",
+                lblShellWeight: "Container Weight",
+                lblDoor: "Access Door",
+                lblDoorPos: "Door Position",
+                lblCable: "Cable Entry",
+                lblCablePos: "Entry Position",
+                lblCableSize: "Entry Size",
+                lblServiceSpace: "Service Space (Clearance)",
+                lblFrontClearance: "Front",
+                lblRearClearance: "Rear",
+                lblSideClearance: "Side",
+                lblFront: "Front",
+                lblRear: "Rear",
+                lblBottomLeft: "Bottom Left",
+                lblBottomRight: "Bottom Right",
+                legendTitle: "3D Legend",
+                legBattery: "Battery Rack",
+                legPCS: "PCS",
+                legTransformer: "Transformer",
+                legHVAC: "HVAC",
+                legNOVEC: "NOVEC System",
+                viewTop: "Top",
+                viewFront: "Front",
+                viewSide: "Side",
+                msgInterferenceDesc: "Automatic physical interference & boundary checking.",
+                msgOK: "No Interference (OK)",
+                msgWarning: "Interference Warning"
+            },
+            zh: {
+                appSubtitle: "集装箱式储能系统 (BESS) 3D概念设计软件",
+                statusSaved: "已自动保存",
+                btnSave: "保存",
+                btnPDF: "PDF",
+                btnJSON: "JSON代码",
+                btnDL: "下载",
+                btnShare: "分享",
+                btnReset: "重置",
+                btnRotate: "旋转 90°",
+                themeDark: "深色",
+                themeLight: "浅色",
+                themeSystem: "跟随系统",
+                treeTitle: "设计树",
+                treeSystem: "System (系统)",
+                treeBattery: "Battery (电池)",
+                treeCell: "Cell (电芯)",
+                treePack: "Pack (电池包)",
+                treeRack: "Rack (电池柜)",
+                treeEquipment: "Equipment (设备)",
+                treePCS: "PCS (变流器)",
+                treeTransformer: "Transformer (变压器)",
+                treeHVAC: "HVAC (温控)",
+                treeNOVEC: "NOVEC (消防)",
+                treeContainer: "Container (集装箱)",
+                treeDCS: "Door / Cable / Service Space",
+                treeInterference: "Interference Check (干涉检查)",
+                summaryTitle: "系统概要",
+                lblSystemCapacity: "系统容量",
+                lblTotalWeight: "总重量",
+                lblAxleLoad: "轴重",
+                lblAisleWidth: "通道宽度",
+                lblContainerSize: "集装箱尺寸",
+                lblTargetCap: "目标容量",
+                lblTargetPower: "目标功率",
+                lblChemistry: "电池电芯类型",
+                lblSystemVolt: "系统电压",
+                lblLength: "长度",
+                lblWidth: "宽度",
+                lblHeight: "高度",
+                lblWeight: "重量",
+                lblCapacity: "容量",
+                lblNomVolt: "标称电压",
+                lblCellsPerPack: "每包电芯数",
+                lblPacksPerRack: "每柜Pack数",
+                lblRackCols: "电池柜列数",
+                lblRackRows: "电池柜行数",
+                lblRatedPower: "额定功率",
+                lblRatedCap: "额定容量",
+                lblCoolingCap: "制冷量",
+                lblQuantity: "数量",
+                lblOpacity: "外壳透明度",
+                lblFoundH: "地基高度",
+                lblShellWeight: "集装箱自重",
+                lblDoor: "防护门",
+                lblDoorPos: "门位置",
+                lblCable: "电缆进线口",
+                lblCablePos: "进线位置",
+                lblCableSize: "进线口尺寸",
+                lblServiceSpace: "运维空间 (间隙)",
+                lblFrontClearance: "前部",
+                lblRearClearance: "后部",
+                lblSideClearance: "侧边",
+                lblFront: "前部",
+                lblRear: "后部",
+                lblBottomLeft: "左下",
+                lblBottomRight: "右下",
+                legendTitle: "3D图例",
+                legBattery: "Battery Rack (电池柜)",
+                legPCS: "PCS (变流器)",
+                legTransformer: "变压器",
+                legHVAC: "HVAC (温控空调)",
+                legNOVEC: "NOVEC (灭火系统)",
+                viewTop: "俯视图",
+                viewFront: "主视图",
+                viewSide: "侧视图",
+                msgInterferenceDesc: "自动检测设备间及边界的物理干涉。",
+                msgOK: "无干涉 (物理配置正常)",
+                msgWarning: "干涉警告"
+            }
+        };
+
+        let currentLang = localStorage.getItem('v3d_lang') || 'ja';
+        let currentTheme = localStorage.getItem('v3d_theme') || 'dark';
+
+        // --- 2. THEME CONTROLLER (Dark / Light / System) ---
+        function setTheme(theme) {
+            currentTheme = theme;
+            localStorage.setItem('v3d_theme', theme);
+            document.getElementById('themeSelect').value = theme;
+
+            const isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+            if (isDark) {
+                document.documentElement.classList.add('dark');
+                if (scene) scene.background = new THREE.Color(0x0a0f1d);
+            } else {
+                document.documentElement.classList.remove('dark');
+                if (scene) scene.background = new THREE.Color(0xf8fafc);
+            }
+        }
+
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+            if (currentTheme === 'system') setTheme('system');
+        });
+
+        // --- 3. LANGUAGE CONTROLLER ---
+        function setLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('v3d_lang', lang);
+
+            ['ja', 'en', 'zh'].forEach(l => {
+                const btn = document.getElementById(`lang-${l}`);
+                if (l === lang) {
+                    btn.className = "px-2 py-0.5 rounded transition text-blue-400 font-bold bg-blue-500/20";
+                } else {
+                    btn.className = "px-2 py-0.5 rounded transition text-slate-400 hover:text-white";
+                }
+            });
+
+            document.querySelectorAll('[data-i18n]').forEach(elem => {
+                const key = elem.getAttribute('data-i18n');
+                if (translations[lang] && translations[lang][key]) {
+                    elem.innerText = translations[lang][key];
+                }
+            });
+
+            updateCalculations();
+        }
+
+        // Standard ISO Container Specs in mm
+        const CONTAINER_SPECS = {
+            '10ft': { length: 2991, width: 2438, height: 2591 },
+            '12ft': { length: 3658, width: 2438, height: 2591 },
+            '20ft': { length: 6058, width: 2438, height: 2591 },
+            '40ft': { length: 12192, width: 2438, height: 2896 }
+        };
+
+        // Application State
+        let state = {
+            containerSize: '20ft',
+            battery: {
+                cellL: 173, cellW: 72, cellH: 207, cellWeight: 5.4, cellVolt: 3.2, capacityAh: 306,
+                cellsPerPack: 16, packL: 700, packW: 550, packH: 220, packWeight: 110,
+                packsPerRack: 8, rackL: 800, rackW: 600, rackH: 2100, rackWeight: 980,
+                rackCols: 2, rackRows: 4
+            },
+            pcs: { power: 500, l: 1000, w: 800, h: 2000, weight: 1200, qty: 1, pos: { x: 1.8, y: 1.0, z: -0.5 }, rotY: 0 },
+            transformer: { cap: 630, l: 800, w: 800, h: 1800, weight: 950, qty: 1, pos: { x: 1.8, y: 0.9, z: 0.5 }, rotY: 0 },
+            hvac: { cooling: 40, l: 600, w: 800, h: 2000, weight: 450, qty: 1, pos: { x: -2.2, y: 1.0, z: 0 }, rotY: 0 },
+            novec: { l: 400, w: 500, h: 1600, weight: 180, qty: 1, pos: { x: 2.2, y: 0.8, z: 0 }, rotY: 0 },
+            shell: { opacity: 0.3, weight: 2800 },
+            found: { height: 400 },
+            dcs: {
+                doorPos: 'front', doorW: 900, doorH: 2000,
+                cablePos: 'bottom-left', cableSize: 300,
+                clrFront: 800, clrRear: 100, clrSide: 100
+            }
+        };
+
+        let scene, camera, renderer, controls;
+        let interactiveObjects = [];
+        let selectedObject = null;
+        let raycaster = new THREE.Raycaster();
+        let mouse = new THREE.Vector2();
+        let plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+        let isDragging = false;
+        let dragOffset = new THREE.Vector3();
+
+        const containerElem = document.getElementById('canvasContainer');
+
+        function init3D() {
+            scene = new THREE.Scene();
+            
+            camera = new THREE.PerspectiveCamera(45, containerElem.clientWidth / containerElem.clientHeight, 0.1, 100);
+            camera.position.set(8, 6, 9);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+            renderer.setSize(containerElem.clientWidth, containerElem.clientHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            containerElem.appendChild(renderer.domElement);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+
+            // Lights
+            scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            dirLight.position.set(10, 20, 15);
+            dirLight.castShadow = true;
+            scene.add(dirLight);
+
+            // Grid
+            const gridHelper = new THREE.GridHelper(30, 30, 0x334155, 0x1e293b);
+            gridHelper.position.y = -0.01;
+            scene.add(gridHelper);
+
+            setupInteractions();
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function setCameraView(view) {
+            const spec = CONTAINER_SPECS[state.containerSize];
+            const dist = spec.length / 1000 * 1.5;
+
+            if (view === 'top') {
+                camera.position.set(0, dist, 0.01);
+            } else if (view === 'front') {
+                camera.position.set(0, 1.2, dist);
+            } else if (view === 'side') {
+                camera.position.set(dist, 1.2, 0);
+            } else {
+                camera.position.set(8, 6, 9);
+            }
+            controls.target.set(0, 1, 0);
+            controls.update();
+        }
+
+        function rebuildScene() {
+            const toRemove = [];
+            scene.children.forEach(c => { if (c.userData && c.userData.isBessItem) toRemove.push(c); });
+            toRemove.forEach(c => scene.remove(c));
+            interactiveObjects = [];
+
+            const spec = CONTAINER_SPECS[state.containerSize];
+            const cL = spec.length / 1000;
+            const cW = spec.width / 1000;
+            const cH = spec.height / 1000;
+
+            // Foundation
+            const fH = state.found.height / 1000;
+            const foundGeo = new THREE.BoxGeometry(cL + 0.1, fH, cW + 0.1);
+            const foundMat = new THREE.MeshStandardMaterial({ color: 0x374151, roughness: 0.9 });
+            const foundationMesh = new THREE.Mesh(foundGeo, foundMat);
+            foundationMesh.position.set(0, -fH / 2, 0);
+            foundationMesh.userData = { isBessItem: true };
+            scene.add(foundationMesh);
+
+            // Container Shell
+            const shellGeo = new THREE.BoxGeometry(cL, cH, cW);
+            const shellMat = new THREE.MeshStandardMaterial({
+                color: 0x6b7280, transparent: true, opacity: parseFloat(state.shell.opacity), roughness: 0.3, side: THREE.DoubleSide
+            });
+            const containerMesh = new THREE.Mesh(shellGeo, shellMat);
+            containerMesh.position.set(0, cH / 2, 0);
+            containerMesh.userData = { isBessItem: true };
+            
+            const wireframe = new THREE.LineSegments(new THREE.EdgesGeometry(shellGeo), new THREE.LineBasicMaterial({ color: 0x94a3b8 }));
+            containerMesh.add(wireframe);
+            scene.add(containerMesh);
+
+            // Access Door
+            const doorW = state.dcs.doorW / 1000;
+            const doorH = state.dcs.doorH / 1000;
+            const doorGeo = new THREE.BoxGeometry(0.05, doorH, doorW);
+            const doorMat = new THREE.MeshStandardMaterial({ color: 0xa855f7, transparent: true, opacity: 0.6 });
+            const doorMesh = new THREE.Mesh(doorGeo, doorMat);
+            const doorX = (state.dcs.doorPos === 'front') ? cL / 2 : -cL / 2;
+            doorMesh.position.set(doorX, doorH / 2, 0);
+            doorMesh.userData = { isBessItem: true, id: 'door', name: 'Access Door' };
+            scene.add(doorMesh);
+
+            buildInternalEquipment(cL, cH, cW);
+            updateCalculations();
+            runInterferenceCheck();
+        }
+
+        function buildInternalEquipment(cL, cH, cW) {
+            function addBessComponent(mesh, id, name) {
+                mesh.userData = { isBessItem: true, isInteractive: true, id: id, name: name };
+                scene.add(mesh);
+                interactiveObjects.push(mesh);
+            }
+
+            // A. Battery Racks (Corrected: Distinct Blue Material Color #2563eb / #3b82f6)
+            const rCols = parseInt(state.battery.rackCols);
+            const rRows = parseInt(state.battery.rackRows);
+            const rackW = state.battery.rackL / 1000;
+            const rackD = state.battery.rackW / 1000;
+            const rackH = state.battery.rackH / 1000;
+
+            let rackIdx = 0;
+            const startX = -cL / 2 + 0.6;
+
+            for (let c = 0; c < rCols; c++) {
+                for (let r = 0; r < rRows; r++) {
+                    rackIdx++;
+                    const id = `rack_${c}_${r}`;
+                    const rackGroup = createRackMesh(rackW, rackH, rackD);
+                    
+                    const posX = startX + (r * (rackW + 0.15));
+                    const posZ = (c === 0) ? -cW/2 + rackD/2 + 0.15 : cW/2 - rackD/2 - 0.15;
+                    rackGroup.position.set(posX, rackH / 2, posZ);
+                    if (c === 1) rackGroup.rotation.y = Math.PI;
+
+                    // Service Space Overlay Box
+                    const clrF = state.dcs.clrFront / 1000;
+                    const clrGeo = new THREE.BoxGeometry(rackW, rackH, rackD + clrF);
+                    const clrMat = new THREE.MeshBasicMaterial({ color: 0x3b82f6, transparent: true, opacity: 0.08, wireframe: true });
+                    const clrMesh = new THREE.Mesh(clrGeo, clrMat);
+                    clrMesh.position.set(0, 0, (c === 0 ? clrF / 2 : -clrF / 2));
+                    rackGroup.add(clrMesh);
+
+                    addBessComponent(rackGroup, id, `Battery Rack #${rackIdx}`);
+                }
+            }
+
+            // B. Equipment
+            if (state.pcs.qty > 0) {
+                const pcs = createEquipBox(state.pcs.l/1000, state.pcs.h/1000, state.pcs.w/1000, 0xeab308);
+                pcs.position.set(state.pcs.pos.x, state.pcs.h/2000, state.pcs.pos.z);
+                pcs.rotation.y = state.pcs.rotY;
+                addBessComponent(pcs, 'pcs', 'PCS');
+            }
+
+            if (state.transformer.qty > 0) {
+                const trans = createEquipBox(state.transformer.l/1000, state.transformer.h/1000, state.transformer.w/1000, 0xf97316);
+                trans.position.set(state.transformer.pos.x, state.transformer.h/2000, state.transformer.pos.z);
+                trans.rotation.y = state.transformer.rotY;
+                addBessComponent(trans, 'transformer', 'Transformer');
+            }
+
+            if (state.hvac.qty > 0) {
+                const hvac = createEquipBox(state.hvac.l/1000, state.hvac.h/1000, state.hvac.w/1000, 0x06b6d4);
+                hvac.position.set(state.hvac.pos.x, state.hvac.h/2000, state.hvac.pos.z);
+                hvac.rotation.y = state.hvac.rotY;
+                addBessComponent(hvac, 'hvac', 'HVAC');
+            }
+
+            if (state.novec.qty > 0) {
+                const nov = createEquipBox(state.novec.l/1000, state.novec.h/1000, state.novec.w/1000, 0xef4444);
+                nov.position.set(state.novec.pos.x, state.novec.h/2000, state.novec.pos.z);
+                nov.rotation.y = state.novec.rotY;
+                addBessComponent(nov, 'novec', 'NOVEC');
+            }
+        }
+
+        // Battery Rack Mesh Creation (Fix: Explicit Blue Material Color #2563eb)
+        function createRackMesh(w, h, d) {
+            const group = new THREE.Group();
+            
+            // Frame Outer Structure (Blue Tinted Dark Metal)
+            const frameMat = new THREE.MeshStandardMaterial({ color: 0x1d4ed8, roughness: 0.4, metalness: 0.5 });
+            const mainMesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), frameMat);
+            group.add(mainMesh);
+
+            // Inner Battery Packs (Vibrant Electric Blue #2563eb)
+            const packsCount = parseInt(state.battery.packsPerRack) || 8;
+            const packMat = new THREE.MeshStandardMaterial({ color: 0x2563eb, roughness: 0.3, metalness: 0.2 });
+            const packH = (h - 0.2) / packsCount;
+            const packGeo = new THREE.BoxGeometry(w - 0.04, packH * 0.85, d - 0.04);
+
+            for (let i = 0; i < packsCount; i++) {
+                const packMesh = new THREE.Mesh(packGeo, packMat);
+                packMesh.position.set(0, -h/2 + 0.1 + (i * packH) + packH/2, 0);
+                group.add(packMesh);
+            }
+
+            return group;
+        }
+
+        function createEquipBox(w, h, d, colorHex) {
+            const group = new THREE.Group();
+            const mesh = new THREE.Mesh(
+                new THREE.BoxGeometry(w, h, d),
+                new THREE.MeshStandardMaterial({ color: colorHex, roughness: 0.4 })
+            );
+            mesh.castShadow = true;
+            group.add(mesh);
+            return group;
+        }
+
+        function setupInteractions() {
+            const dom = renderer.domElement;
+
+            dom.addEventListener('pointerdown', (e) => {
+                const rect = dom.getBoundingClientRect();
+                mouse.x = ((e.clientX - rect.left) / dom.clientWidth) * 2 - 1;
+                mouse.y = -((e.clientY - rect.top) / dom.clientHeight) * 2 + 1;
+
+                raycaster.setFromCamera(mouse, camera);
+                const intersects = raycaster.intersectObjects(interactiveObjects, true);
+
+                if (intersects.length > 0) {
+                    let rootObj = intersects[0].object;
+                    while (rootObj.parent && rootObj.parent !== scene) rootObj = rootObj.parent;
+                    selectObject(rootObj);
+
+                    isDragging = true;
+                    controls.enabled = false;
+
+                    const intersectionPoint = new THREE.Vector3();
+                    raycaster.ray.intersectPlane(plane, intersectionPoint);
+                    dragOffset.subVectors(rootObj.position, intersectionPoint);
+                }
+            });
+
+            dom.addEventListener('pointermove', (e) => {
+                if (!isDragging || !selectedObject) return;
+
+                const rect = dom.getBoundingClientRect();
+                mouse.x = ((e.clientX - rect.left) / dom.clientWidth) * 2 - 1;
+                mouse.y = -((e.clientY - rect.top) / dom.clientHeight) * 2 + 1;
+
+                raycaster.setFromCamera(mouse, camera);
+                const intersectionPoint = new THREE.Vector3();
+                if (raycaster.ray.intersectPlane(plane, intersectionPoint)) {
+                    const newPos = intersectionPoint.add(dragOffset);
+                    selectedObject.position.x = newPos.x;
+                    selectedObject.position.z = newPos.z;
+
+                    const id = selectedObject.userData.id;
+                    if (state[id] && state[id].pos) {
+                        state[id].pos.x = Math.round(newPos.x * 1000) / 1000;
+                        state[id].pos.z = Math.round(newPos.z * 1000) / 1000;
+                    }
+
+                    updateCalculations();
+                    runInterferenceCheck();
+                    autoSave();
+                }
+            });
+
+            const stopDrag = () => { isDragging = false; controls.enabled = true; };
+            dom.addEventListener('pointerup', stopDrag);
+            dom.addEventListener('pointerleave', stopDrag);
+
+            document.getElementById('btnDeselect').addEventListener('click', () => selectObject(null));
+            document.getElementById('btnRotateY').addEventListener('click', () => {
+                if (selectedObject) {
+                    selectedObject.rotation.y += Math.PI / 2;
+                    const id = selectedObject.userData.id;
+                    if (state[id]) state[id].rotY = selectedObject.rotation.y;
+                    runInterferenceCheck();
+                    autoSave();
+                }
+            });
+            document.getElementById('btnResetPos').addEventListener('click', () => {
+                rebuildScene();
+                selectObject(null);
+            });
+        }
+
+        function selectObject(obj) {
+            selectedObject = obj;
+            const panel = document.getElementById('selectedGizmoPanel');
+            if (selectedObject) {
+                document.getElementById('selectedObjName').innerText = selectedObject.userData.name || 'Selected Item';
+                panel.classList.remove('hidden');
+
+                document.querySelectorAll('.tree-node').forEach(n => n.classList.remove('active'));
+                const id = selectedObject.userData.id;
+                if (id && id.startsWith('rack')) switchTab('battery-rack');
+                else if (id) switchTab(`eq-${id}`);
+            } else {
+                panel.classList.add('hidden');
+            }
+        }
+
+        function updateCalculations() {
+            const cellCapAh = parseFloat(state.battery.capacityAh) || 306;
+            const cellVolt = parseFloat(state.battery.cellVolt) || 3.2;
+            const cellsPerPack = parseInt(state.battery.cellsPerPack) || 16;
+            const packsPerRack = parseInt(state.battery.packsPerRack) || 8;
+            const totalRacks = (parseInt(state.battery.rackCols) || 2) * (parseInt(state.battery.rackRows) || 4);
+
+            const packWh = cellCapAh * cellVolt * cellsPerPack;
+            const rackKWh = (packWh * packsPerRack) / 1000;
+            const totalMWh = (rackKWh * totalRacks) / 1000;
+
+            document.getElementById('valTotalCap').innerText = `${totalMWh.toFixed(3)} MWh`;
+
+            const rackWeightKg = parseFloat(state.battery.rackWeight) || 980;
+            const totalBatteryWeightKg = rackWeightKg * totalRacks;
+
+            const pcsKg = (parseFloat(state.pcs.weight) || 0) * state.pcs.qty;
+            const transKg = (parseFloat(state.transformer.weight) || 0) * state.transformer.qty;
+            const hvacKg = (parseFloat(state.hvac.weight) || 0) * state.hvac.qty;
+            const novKg = (parseFloat(state.novec.weight) || 0) * state.novec.qty;
+            const shellKg = parseFloat(state.shell.weight) || 0;
+
+            const totalKg = totalBatteryWeightKg + pcsKg + transKg + hvacKg + novKg + shellKg;
+            const totalTons = totalKg / 1000;
+
+            document.getElementById('valTotalWeight').innerText = `${totalTons.toFixed(2)} ton`;
+
+            let momentX = 0;
+            interactiveObjects.forEach(obj => {
+                let w = 100;
+                if (obj.userData.id && obj.userData.id.startsWith('rack')) w = rackWeightKg;
+                else if (obj.userData.id === 'pcs') w = pcsKg;
+                else if (obj.userData.id === 'transformer') w = transKg;
+                else if (obj.userData.id === 'hvac') w = hvacKg;
+                else if (obj.userData.id === 'novec') w = novKg;
+                momentX += w * obj.position.x;
+            });
+
+            const spec = CONTAINER_SPECS[state.containerSize];
+            const cL = spec.length / 1000;
+            const frontRatio = 0.5 + (momentX / (cL * totalKg || 1));
+            const frontTons = Math.max(0, totalTons * frontRatio);
+            const rearTons = Math.max(0, totalTons - frontTons);
+
+            document.getElementById('valAxleLoad').innerText = `Front ${frontTons.toFixed(2)} ton / Rear ${rearTons.toFixed(2)} ton`;
+
+            const cW = spec.width / 1000;
+            let minPosZ = cW / 2;
+            let maxNegZ = -cW / 2;
+            interactiveObjects.forEach(obj => {
+                const z = obj.position.z;
+                if (z > 0 && z < minPosZ) minPosZ = z - 0.3;
+                if (z < 0 && z > maxNegZ) maxNegZ = z + 0.3;
+            });
+            const aisleMM = Math.max(0, Math.round((minPosZ - maxNegZ) * 1000));
+            document.getElementById('valWalkway').innerText = `${aisleMM} mm`;
+        }
+
+        function runInterferenceCheck() {
+            const spec = CONTAINER_SPECS[state.containerSize];
+            const maxL = spec.length / 2000;
+            const maxW = spec.width / 2000;
+
+            const logs = [];
+            let hasConflict = false;
+
+            interactiveObjects.forEach(obj => {
+                const name = obj.userData.name || obj.userData.id;
+                if (Math.abs(obj.position.x) > maxL - 0.1 || Math.abs(obj.position.z) > maxW - 0.1) {
+                    hasConflict = true;
+                    logs.push(`<div class="text-amber-400"><i class="fa-solid fa-triangle-exclamation mr-1"></i> [Boundary Out] ${name} exceeds container wall!</div>`);
+                }
+            });
+
+            for (let i = 0; i < interactiveObjects.length; i++) {
+                for (let j = i + 1; j < interactiveObjects.length; j++) {
+                    const a = interactiveObjects[i];
+                    const b = interactiveObjects[j];
+                    if (a.position.distanceTo(b.position) < 0.65) {
+                        hasConflict = true;
+                        logs.push(`<div class="text-red-400"><i class="fa-solid fa-circle-xmark mr-1"></i> [Collision] ${a.userData.name} ↔ ${b.userData.name}</div>`);
+                    }
+                }
+            }
+
+            const badgeTree = document.getElementById('treeInterferenceBadge');
+            const badgeTab = document.getElementById('interferenceStatusBadge');
+            const logBox = document.getElementById('interferenceLog');
+
+            if (hasConflict) {
+                const warnText = translations[currentLang].msgWarning;
+                badgeTree.className = "px-1.5 py-0.5 rounded text-[10px] bg-red-500/20 text-red-400 font-mono font-bold";
+                badgeTree.innerText = "WARNING";
+                badgeTab.className = "px-2 py-0.5 rounded text-xs bg-red-500/20 text-red-400 font-bold";
+                badgeTab.innerText = warnText;
+                logBox.innerHTML = logs.join('');
+            } else {
+                const okText = translations[currentLang].msgOK;
+                badgeTree.className = "px-1.5 py-0.5 rounded text-[10px] bg-emerald-500/20 text-emerald-400 font-mono";
+                badgeTree.innerText = "OK";
+                badgeTab.className = "px-2 py-0.5 rounded text-xs bg-emerald-500/20 text-emerald-400 font-bold";
+                badgeTab.innerText = "OK";
+                logBox.innerHTML = `<div class="text-emerald-400"><i class="fa-solid fa-check mr-1"></i> ${okText}</div>`;
+            }
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('[id^="tab-"]').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tree-node').forEach(el => el.classList.remove('active'));
+
+            const targetTab = document.getElementById(`tab-${tabId}`);
+            if (targetTab) targetTab.classList.remove('hidden');
+
+            const targetNode = document.getElementById(`tn-${tabId}`);
+            if (targetNode) targetNode.classList.add('active');
+        }
+
+        function bindInputs() {
+            document.getElementById('sysContainerSize').addEventListener('change', (e) => {
+                state.containerSize = e.target.value;
+                rebuildScene();
+                autoSave();
+            });
+
+            document.getElementById('shellOpacity').addEventListener('input', (e) => {
+                state.shell.opacity = e.target.value;
+                document.getElementById('opacityVal').innerText = `${Math.round(e.target.value * 100)}%`;
+                rebuildScene();
+                autoSave();
+            });
+
+            const inputs = [
+                ['cellL', 'battery', 'cellL'], ['cellW', 'battery', 'cellW'], ['cellH', 'battery', 'cellH'],
+                ['cellCap', 'battery', 'capacityAh'], ['cellsPerPack', 'battery', 'cellsPerPack'],
+                ['packWeight', 'battery', 'packWeight'], ['packsPerRack', 'battery', 'packsPerRack'],
+                ['rackWeight', 'battery', 'rackWeight'], ['rackCols', 'battery', 'rackCols'], ['rackRows', 'battery', 'rackRows'],
+                ['pcsW', 'pcs', 'w'], ['pcsH', 'pcs', 'h'], ['pcsWeight', 'pcs', 'weight'], ['pcsQty', 'pcs', 'qty'],
+                ['transW', 'transformer', 'w'], ['transH', 'transformer', 'h'], ['transWeight', 'transformer', 'weight'], ['transQty', 'transformer', 'qty'],
+                ['hvacW', 'hvac', 'w'], ['hvacH', 'hvac', 'h'], ['hvacWeight', 'hvac', 'weight'], ['hvacQty', 'hvac', 'qty'],
+                ['novecW', 'novec', 'w'], ['novecH', 'novec', 'h'], ['novecWeight', 'novec', 'weight'], ['novecQty', 'novec', 'qty'],
+                ['doorW', 'dcs', 'doorW'], ['doorH', 'dcs', 'doorH'], ['clrFront', 'dcs', 'clrFront']
+            ];
+
+            inputs.forEach(([id, sec, key]) => {
+                const elem = document.getElementById(id);
+                if (elem) {
+                    elem.addEventListener('input', (e) => {
+                        state[sec][key] = parseFloat(e.target.value) || 0;
+                        rebuildScene();
+                        autoSave();
+                    });
+                }
+            });
+
+            document.getElementById('btnResetDefaults').addEventListener('click', () => {
+                localStorage.removeItem('v3d_state');
+                location.reload();
+            });
+
+            document.getElementById('btnExportCode').addEventListener('click', () => {
+                document.getElementById('codeArea').value = JSON.stringify(state, null, 2);
+                document.getElementById('modalCode').classList.remove('hidden');
+            });
+            document.getElementById('btnCloseModal').addEventListener('click', () => {
+                document.getElementById('modalCode').classList.add('hidden');
+            });
+            document.getElementById('btnCopyCode').addEventListener('click', () => {
+                document.getElementById('codeArea').select();
+                document.execCommand('copy');
+                alert('JSON copied!');
+            });
+
+            document.getElementById('btnSaveTemp').addEventListener('click', autoSave);
+            document.getElementById('btnDownload').addEventListener('click', downloadConfig);
+            document.getElementById('btnShare').addEventListener('click', shareUrl);
+            document.getElementById('btnPDF').addEventListener('click', exportPDF);
+        }
+
+        function autoSave() {
+            localStorage.setItem('v3d_state', JSON.stringify(state));
+            const status = document.getElementById('saveStatus');
+            status.style.opacity = '1';
+            setTimeout(() => { status.style.opacity = '0'; }, 1200);
+        }
+
+        function loadState() {
+            const saved = localStorage.getItem('v3d_state');
+            if (saved) {
+                try { state = { ...state, ...JSON.parse(saved) }; } catch (e) {}
+            }
+        }
+
+        function downloadConfig() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state, null, 2));
+            const anchor = document.createElement('a');
+            anchor.setAttribute("href", dataStr);
+            anchor.setAttribute("download", `v3D_studio_v2_spec_${state.containerSize}.json`);
+            anchor.click();
+        }
+
+        function shareUrl() {
+            const encoded = btoa(JSON.stringify(state));
+            const url = `${window.location.origin}${window.location.pathname}#${encoded}`;
+            navigator.clipboard.writeText(url);
+            alert('Share link copied to clipboard!');
+        }
+
+        function exportPDF() {
+            renderer.render(scene, camera);
+            const imgData = renderer.domElement.toDataURL('image/png');
+
+            const element = document.createElement('div');
+            element.className = 'p-8 bg-white text-slate-900 font-sans';
+            element.innerHTML = `
+                <div style="padding:20px; color:#0f172a;">
+                    <h1 style="font-size:22px; font-weight:bold; border-bottom:2px solid #2563eb; padding-bottom:8px;">v3D studio v2.0 - BESS Concept Report</h1>
+                    <div style="text-align:center; margin:15px 0;">
+                        <img src="${imgData}" style="max-width:100%; height:240px; border:1px solid #cbd5e1; border-radius:8px; object-fit:contain; background:#0a0f1d;" />
+                    </div>
+                    <table style="width:100%; border-collapse:collapse; font-size:12px; margin-top:15px;">
+                        <tr style="background:#f8fafc;">
+                            <td style="padding:6px; border:1px solid #e2e8f0; font-weight:bold;">Container Size</td>
+                            <td style="padding:6px; border:1px solid #e2e8f0;">${state.containerSize}</td>
+                            <td style="padding:6px; border:1px solid #e2e8f0; font-weight:bold;">System Capacity</td>
+                            <td style="padding:6px; border:1px solid #e2e8f0; font-weight:bold; color:#2563eb;">${document.getElementById('valTotalCap').innerText}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding:6px; border:1px solid #e2e8f0; font-weight:bold;">Total Weight</td>
+                            <td style="padding:6px; border:1px solid #e2e8f0;">${document.getElementById('valTotalWeight').innerText}</td>
+                            <td style="padding:6px; border:1px solid #e2e8f0; font-weight:bold;">Axle Load</td>
+                            <td style="padding:6px; border:1px solid #e2e8f0;">${document.getElementById('valAxleLoad').innerText}</td>
+                        </tr>
+                    </table>
+                </div>
+            `;
+
+            html2pdf().set({ margin: 0.3, filename: `v3D_v2_Report_${state.containerSize}.pdf`, html2canvas: { scale: 2 }, jsPDF: { format: 'a4' } }).from(element).save();
+        }
+
+        function onWindowResize() {
+            camera.aspect = containerElem.clientWidth / containerElem.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(containerElem.clientWidth, containerElem.clientHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        window.onload = function() {
+            init3D();
+            loadState();
+            bindInputs();
+            setTheme(currentTheme);
+            setLanguage(currentLang);
+            rebuildScene();
+            animate();
+        };
+    </script>
+</body>
+</html>
